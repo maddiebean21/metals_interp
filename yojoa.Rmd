@@ -1,20 +1,20 @@
 ---
 title: "yojoa heat map"
-author: "Matthew Ross"
+author: "Madeline Bean"
 date: "2/22/2019"
 output: html_document
 ---
 
 ```{r}
 library(tidyverse)
-library(sf)
+library(sf) #new and better package
 library(mapview)
 library(lubridate)
 library(osmdata)
-library(raster)
-library(sp)
+library(raster) #not using anymore
+library(sp) #not using anymore
 library(gstat)
-
+mapviewOptions(fgb=FALSE)
 ```
 
 
@@ -32,7 +32,7 @@ ys.m <- st_transform(ys,crs=26716) %>%
 
 
 
-# Get county 
+# Get state metadata 
 bb <- getbb('Santa Barbara, Honduras')
 
 #Download Lago de Yojoa
@@ -47,7 +47,9 @@ add_osm_feature(key = 'natural', value = 'water') %>%
 #Get bboxx info for yojoa
 yo_box <- st_bbox(lake)
 
-mapview(ys,zcol='Cu_mg_kg')
+mapview(ys,zcol='Cu_mg_kg') +
+  mapview(lake) +
+  mapview(yo_box)
 ```
 
 ## Make a heatmap
@@ -60,10 +62,10 @@ g <- as(lake.raster,'SpatialGrid')
 
 y.sp <- as(ys.m,'Spatial')
 
-
+#making a vector
 metals = c('Cu_mg_kg','Zn_mg_kg','Cd_mg_kg','Pb_mg_kg')
 
-
+# loop because there are a bunch
 for(i in 1:length(metals)){
   
   
@@ -81,5 +83,41 @@ for(i in 1:length(metals)){
   mapshot(cu,url=paste0(metals[i],'.html'))
 }
 
+cu
+```
+
+#The New Way
+
+```{r}
+library(stars)
+```
+
+```{r}
+
+#making a boundary box
+lake_stars <- st_bbox(lake)%>%
+  st_as_stars(dx = 100) %>%
+  st_crop(lake)
+
+#mapview(lake_stars)
+
+interp = idw(Zn_mg_kg~1, y.sp, lake_stars)
+interp = krige(Zn_mg_kg~1, y.sp, lake_stars)
+
+plot(interp)
+mapview(interp, na.col=NA,col.regions=mapviewGetOption('vector.palette'))+
+  mapview(y.sp, zcol = 'Zn_mg_kg')
+```
+
+# Sample Variogram
+
+```{r}
+v_zn <- variogram(Zn_mg_kg~1, y.sp)
+
+plot(v_zn)
+
+v.m = fit.variogram(v_zn, vgm(1, 'Mat', 500, 1))
+
+plot(v_zn, v.m, plot.numbers = TRUE)
 ```
 
